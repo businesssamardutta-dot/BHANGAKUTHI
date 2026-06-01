@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance Management System</title>
     <style>
-        /* Your existing CSS */
+        /* All your original CSS remains untouched */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
         .container { background: #ffffff; border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); width: 100%; max-width: 500px; overflow: hidden; }
@@ -95,10 +95,10 @@
     <script>
         /** 
          * CONFIGURATION 
-         * PASTE YOUR FRESH COPIED VALUES HERE 
          */
-        const SUPABASE_BASE_URL = 'https://zakajrrmzzybyptypjdt.supabase.co/rest/v1/'; 
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpha2FqcnJtenp5YnlwdHlwamR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyODk4NzMsImV4cCI6MjA5NTg2NTg3M30.IrWQsa1s6kzgNzhoa-NXOtz9OUeKZcY2MF6e8Zp4LXU';
+        // IMPORTANT: Ensure there is NO "/rest/v1" in this URL.
+        const SUPABASE_BASE_URL = 'https://zakajrrmzzybyptypjdt.supabase.co'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpha2FqcnJmenp5YnlwdHlwamR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyODk4NzMsImV4cCI6MjA5NTg2NTg3M30.IrWQsa1s6kzgNzhoa-NXOtz9OUeKZcY2MF6e8Zp4LXU';
         
         const ATTENDANCE_TABLE = 'BHANGAKUTHI';
         const EMPLOYEE_TABLE = 'employee_master';
@@ -106,6 +106,17 @@
         let locationCoords = null;
         let locationName = 'Unknown';
         let locationReady = false;
+
+        /**
+         * URL BUILDER (Slash-Proof)
+         * This function ensures we never get "//rest/v1" errors.
+         */
+        function getSupabaseUrl(tableName, query = '') {
+            // 1. Remove any trailing slashes from base URL
+            const cleanBase = SUPABASE_BASE_URL.replace(/\/+$/, "");
+            // 2. Build the path
+            return `${cleanBase}/rest/v1/${tableName}${query ? '?' + query : ''}`;
+        }
 
         // 1. Load Employees
         async function loadEmployees(company) {
@@ -117,15 +128,14 @@
             loading.classList.add('active');
 
             try {
-                // Use .trim() to clean up any accidental spaces from the key
-                const cleanKey = SUPABASE_ANON_KEY.trim();
-                const url = `${SUPABASE_BASE_URL}/rest/v1/${EMPLOYEE_TABLE}?select=*`;
+                const url = getSupabaseUrl(EMPLOYEE_TABLE, 'select=*');
+                console.log("Fetching URL:", url);
                 
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: {
-                        'apikey': cleanKey,
-                        'Authorization': `Bearer ${cleanKey}`
+                        'apikey': SUPABASE_ANON_KEY.trim(),
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY.trim()}`
                     }
                 });
 
@@ -136,7 +146,7 @@
                 
                 const data = await response.json();
                 
-                // Match based on screenshot: company_name and employee_name
+                // Column names from your screenshot
                 const filtered = data
                     .filter(row => row.company_name === company)
                     .map(row => row.employee_name);
@@ -156,9 +166,9 @@
                 }
             } catch (error) {
                 console.error('Load Error:', error);
-                employeeSelect.innerHTML = '<option value="">Failed to load</option>';
+                employeeSelect.innerHTML = '<option value="">Error loading</option>';
                 employeeSelect.disabled = true;
-                showMessage(`Connection Error: ${error.message}`, 'error');
+                showMessage(`Error: ${error.message}`, 'error');
             } finally {
                 loading.classList.remove('active');
                 checkFormReady();
@@ -224,13 +234,12 @@
             };
 
             try {
-                const cleanKey = SUPABASE_ANON_KEY.trim();
-                const url = `${SUPABASE_BASE_URL}/rest/v1/${ATTENDANCE_TABLE}`;
+                const url = getSupabaseUrl(ATTENDANCE_TABLE);
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
-                        'apikey': cleanKey,
-                        'Authorization': `Bearer ${cleanKey}`,
+                        'apikey': SUPABASE_ANON_KEY.trim(),
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY.trim()}`,
                         'Content-Type': 'application/json',
                         'Prefer': 'return=minimal'
                     },
@@ -258,7 +267,7 @@
             }
         }
 
-        // Utilities
+        // Helpers
         function updateTimestamp() {
             const n = new Date();
             return `${String(n.getDate()).padStart(2,'0')}-${String(n.getMonth()+1).padStart(2,'0')}-${n.getFullYear()} ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
