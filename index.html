@@ -269,15 +269,19 @@
     </div>
 
     <script>
-        const SHEET_ID = '1PePRiUvoPk0_iLpYMZppYIj_ZJqI5p9gZwToXE5jRxE';
-        const GOOGLE_API_KEY = 'AIzaSyBVJr3BtwLStvjjiQ9cGidfSL7t8sQevBc';
-        const FORM_URL = 'https://script.google.com/macros/s/AKfycbwrO4nQUe2NhNIHoCuPqEcH58D1A-z_lgeX7YLZ8rJN1IF0gMmiXWXyNEOCrOPp30Fxlw/exec';
+        // SUPABASE CREDENTIALS
+        const SUPABASE_URL = 'https://zakajrrmzzybyptypjdt.supabase.co/rest/v1';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpha2FqcnJmenp5YnlwdHlwamR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyODk4NzMsImV4cCI6MjA5NTg2NTg3M30.IrWQsa1s6kzgNzhoa-NXOtz9OUeKZcY2MF6e8Zp4LXU';
+        
+        // TABLE NAMES
+        const ATTENDANCE_TABLE = 'BHANGAKUTHI';
+        const EMPLOYEE_TABLE = 'employee_master';
         
         let locationCoords = null;
         let locationName = 'Unknown';
         let locationReady = false;
 
-        // Load employees from Google Sheets using API
+        // Load employees from Supabase
         async function loadEmployees(company) {
             const employeeSelect = document.getElementById('employee');
             const loading = document.getElementById('employeeLoading');
@@ -287,48 +291,36 @@
             loading.classList.add('active');
 
             try {
-                const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/List!A2:B?key=${GOOGLE_API_KEY}`;
-                console.log('Fetching employees from:', url);
-                console.log('Looking for company:', company);
-                
-                const response = await fetch(url);
-                const data = await response.json();
-                
-                console.log('Google Sheets response:', data);
-                
-                if (data.values && data.values.length > 0) {
-                    // Filter employees - EXACT match only
-                    const employees = data.values
-                        .filter(row => {
-                            const companyInSheet = row[0] ? row[0].toString().trim() : '';
-                            const employeeName = row[1] ? row[1].toString().trim() : '';
-                            const matches = companyInSheet === company && employeeName !== '';
-                            
-                            console.log(`Row: Company="${companyInSheet}", Employee="${employeeName}", Matches=${matches}`);
-                            
-                            return matches;
-                        })
-                        .map(row => row[1].toString().trim());
-                    
-                    console.log('Filtered employees for', company, ':', employees);
-                    
-                    if (employees.length > 0) {
-                        employeeSelect.innerHTML = '<option value="">Select Employee</option>';
-                        
-                        employees.forEach(name => {
-                            const option = document.createElement('option');
-                            option.value = name;
-                            option.textContent = name;
-                            employeeSelect.appendChild(option);
-                        });
-                        
-                        employeeSelect.disabled = false;
-                    } else {
-                        employeeSelect.innerHTML = '<option value="">No employees found</option>';
-                        showMessage(`No employees found for company "${company}"`, 'error');
+                // Fetching all employees from the master table
+                const response = await fetch(`${SUPABASE_URL}/${EMPLOYEE_TABLE}?select=*`, {
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
                     }
+                });
+
+                if (!response.ok) throw new Error('Failed to fetch employees');
+                
+                const employeesData = await response.json();
+                
+                // Filter employees where company matches (assumes column name is 'company')
+                // and name matches (assumes column name is 'name')
+                const filteredEmployees = employeesData
+                    .filter(emp => emp.company === company)
+                    .map(emp => emp.name); // Change 'name' to your column name if different
+
+                if (filteredEmployees.length > 0) {
+                    employeeSelect.innerHTML = '<option value="">Select Employee</option>';
+                    filteredEmployees.forEach(name => {
+                        const option = document.createElement('option');
+                        option.value = name;
+                        option.textContent = name;
+                        employeeSelect.appendChild(option);
+                    });
+                    employeeSelect.disabled = false;
                 } else {
-                    throw new Error('No data returned from Google Sheets');
+                    employeeSelect.innerHTML = '<option value="">No employees found</option>';
+                    showMessage(`No employees found for company "${company}"`, 'error');
                 }
             } catch (error) {
                 console.error('Error loading employees:', error);
@@ -346,37 +338,20 @@
         async function getLocationName(lat, lon) {
             try {
                 const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
-                console.log('Fetching location from:', url);
-                
-                const response = await fetch(url, {
-                    headers: {
-                        'User-Agent': 'AttendanceApp/1.0'
-                    }
-                });
+                const response = await fetch(url, { headers: { 'User-Agent': 'AttendanceApp/1.0' } });
                 const data = await response.json();
-                
-                console.log('OpenStreetMap response:', data);
                 
                 if (data && data.address) {
                     const addr = data.address;
                     const parts = [];
-                    
-                    // Build readable address
                     if (addr.road) parts.push(addr.road);
                     if (addr.suburb || addr.neighbourhood) parts.push(addr.suburb || addr.neighbourhood);
                     if (addr.city || addr.town || addr.village) parts.push(addr.city || addr.town || addr.village);
-                    if (addr.state) parts.push(addr.state);
-                    
-                    if (parts.length > 0) {
-                        return parts.slice(0, 3).join(', ');
-                    }
-                    
+                    if (parts.length > 0) return parts.slice(0, 3).join(', ');
                     return data.display_name.split(',').slice(0, 3).join(',');
-                } else {
-                    return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
                 }
+                return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
             } catch (error) {
-                console.error('Error getting location name:', error);
                 return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
             }
         }
@@ -384,10 +359,8 @@
         // Get user location
         function getLocation() {
             const locationDisplay = document.getElementById('locationDisplay');
-
             if (!navigator.geolocation) {
                 locationDisplay.value = 'Location not supported';
-                showMessage('Geolocation is not supported by your browser', 'error');
                 locationReady = false;
                 return;
             }
@@ -398,108 +371,78 @@
                 async function(position) {
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
-                    
                     locationCoords = `${lat}, ${lon}`;
                     document.getElementById('location').value = locationCoords;
-                    
-                    console.log('Got coordinates:', lat, lon);
-                    
                     locationDisplay.value = 'Getting location name...';
-                    
                     locationName = await getLocationName(lat, lon);
                     locationDisplay.value = locationName;
-                    
                     locationReady = true;
-                    console.log('Location ready:', locationName);
                     checkFormReady();
                 },
                 function(error) {
-                    console.error('Geolocation error:', error);
                     locationDisplay.value = 'Location access denied';
                     locationReady = false;
-                    
-                    let errorMsg = 'Please enable location services. ';
-                    if (error.code === 1) {
-                        errorMsg += 'Location permission denied.';
-                    } else if (error.code === 2) {
-                        errorMsg += 'Location unavailable.';
-                    } else if (error.code === 3) {
-                        errorMsg += 'Request timed out.';
-                    }
-                    
-                    showMessage(errorMsg, 'error');
+                    showMessage('Please enable location services.', 'error');
                     checkFormReady();
                 },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 15000,
-                    maximumAge: 0
-                }
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
             );
         }
 
-        // Update timestamp
         function updateTimestamp() {
             const now = new Date();
-            const day = String(now.getDate()).padStart(2, '0');
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const year = now.getFullYear();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            
-            const timestamp = `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
+            const timestamp = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
             document.getElementById('timestamp').value = timestamp;
             return timestamp;
         }
 
-        // Check if form is ready to submit
         function checkFormReady() {
             const company = document.getElementById('company').value;
             const employee = document.getElementById('employee').value;
             const submitBtn = document.getElementById('submitBtn');
-            
-            if (company && employee && locationReady) {
-                submitBtn.disabled = false;
-            } else {
-                submitBtn.disabled = true;
-            }
+            submitBtn.disabled = !(company && employee && locationReady);
         }
 
-        // Submit attendance
+        // Submit attendance to Supabase
         async function submitAttendance() {
             const submitBtn = document.getElementById('submitBtn');
             const company = document.getElementById('company').value;
             const employee = document.getElementById('employee').value;
             const status = document.querySelector('input[name="status"]:checked').value;
-            
+            const timestamp = updateTimestamp();
+            const location = locationName;
+
             if (!company || !employee || !locationCoords) {
                 showMessage('Please fill all fields and enable location', 'error');
                 return;
             }
 
-            const timestamp = updateTimestamp();
-            
             submitBtn.disabled = true;
             submitBtn.textContent = 'Submitting...';
 
-            const formData = new FormData();
-            formData.append('company', company);
-            formData.append('employee', employee);
-            formData.append('status', status);
-            formData.append('timestamp', timestamp);
-            formData.append('location', locationName);
+            // Prepare data for Supabase
+            // NOTE: Ensure these keys (company, employee, status, etc.) match your Supabase column names exactly!
+            const payload = {
+                company: company,
+                employee: employee,
+                status: status,
+                timestamp: timestamp,
+                location: location
+            };
 
             try {
-                const response = await fetch(FORM_URL, {
+                const response = await fetch(`${SUPABASE_URL}/${ATTENDANCE_TABLE}`, {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify(payload)
                 });
 
-                const result = await response.text();
-                console.log('Submit result:', result);
-
-                if (response.ok || result.includes('Success')) {
+                if (response.ok) {
                     showMessage('✓ Attendance submitted successfully!', 'success');
                     setTimeout(() => {
                         document.getElementById('employee').value = '';
@@ -509,17 +452,18 @@
                         hideMessage();
                     }, 2000);
                 } else {
-                    throw new Error('Submission failed');
+                    const errorData = await response.json();
+                    console.error('Supabase Error:', errorData);
+                    throw new Error(errorData.message || 'Submission failed');
                 }
             } catch (error) {
                 console.error('Submit error:', error);
-                showMessage('Failed to submit attendance. Please try again.', 'error');
+                showMessage('Failed to submit. ' + error.message, 'error');
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Submit Attendance';
             }
         }
 
-        // Show message
         function showMessage(text, type) {
             const message = document.getElementById('message');
             message.textContent = text;
@@ -527,13 +471,10 @@
             message.style.display = 'block';
         }
 
-        // Hide message
         function hideMessage() {
-            const message = document.getElementById('message');
-            message.style.display = 'none';
+            document.getElementById('message').style.display = 'none';
         }
 
-        // Event listeners
         document.getElementById('company').addEventListener('change', function() {
             if (this.value) {
                 loadEmployees(this.value);
@@ -547,9 +488,7 @@
 
         document.getElementById('employee').addEventListener('change', checkFormReady);
 
-        // Initialize on page load
         window.onload = function() {
-            console.log('Initializing attendance form...');
             getLocation();
             updateTimestamp();
         };
