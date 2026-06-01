@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance Management System</title>
     <style>
-        /* All original CSS remains untouched */
+        /* All your professional CSS remains exactly as it was */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
         .container { background: #ffffff; border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); width: 100%; max-width: 500px; overflow: hidden; }
@@ -80,6 +80,7 @@
                     </div>
                 </div>
 
+                <!-- Hidden Fields -->
                 <input type="hidden" id="timestamp" name="timestamp">
                 <input type="hidden" id="location" name="location">
 
@@ -106,12 +107,7 @@
         let locationName = 'Unknown';
         let locationReady = false;
 
-        function getSupabaseUrl(tableName, query = '') {
-            const cleanBase = SUPABASE_BASE_URL.replace(/\/+$/, "");
-            return `${cleanBase}/rest/v1/${tableName}${query ? '?' + query : ''}`;
-        }
-
-        // 1. Load Employees (Uses employee_master column names: company_name and employee_name)
+        // 1. LOAD EMPLOYEES (Using master table columns: company_name, employee_name)
         async function loadEmployees(company) {
             const employeeSelect = document.getElementById('employee');
             const loading = document.getElementById('employeeLoading');
@@ -120,7 +116,7 @@
             loading.classList.add('active');
 
             try {
-                const url = getSupabaseUrl(EMPLOYEE_TABLE, 'select=*');
+                const url = `${SUPABASE_BASE_URL}/rest/v1/${EMPLOYEE_TABLE}?select=*`;
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: {
@@ -151,16 +147,16 @@
                 }
             } catch (error) {
                 console.error('Load Error:', error);
-                employeeSelect.innerHTML = '<option value="">Error loading</option>';
+                employeeSelect.innerHTML = '<option value="">Failed to load</option>';
                 employeeSelect.disabled = true;
-                showMessage(`Error: ${error.message}`, 'error');
+                showMessage(`Failed to load employees.`, 'error');
             } finally {
                 loading.classList.remove('active');
                 checkFormReady();
             }
         }
 
-        // 2. Location Logic
+        // 2. LOCATION LOGIC
         async function getLocationName(lat, lon) {
             try {
                 const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18`;
@@ -196,31 +192,49 @@
             }, { enableHighAccuracy: true });
         }
 
-        // 3. SUBMIT ATTENDANCE (FIXED: Using Capitalized column names from your screenshot)
+        // 3. FORMAT TIMESTAMP (Using YYYY-MM-DD format for database compatibility)
+        function getFormattedTimestamp() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+
+        function checkFormReady() {
+            const company = document.getElementById('company').value;
+            const employee = document.getElementById('employee').value;
+            document.getElementById('submitBtn').disabled = !(company && employee && locationReady);
+        }
+
+        // 4. SUBMIT ATTENDANCE (Using EXACT Capitalized Column Names from your screenshot)
         async function submitAttendance() {
             const btn = document.getElementById('submitBtn');
             const companyVal = document.getElementById('company').value;
             const employeeVal = document.getElementById('employee').value;
             const statusVal = document.querySelector('input[name="status"]:checked').value;
-            const timestampVal = updateTimestamp();
+            const timestampVal = getFormattedTimestamp();
 
             btn.disabled = true;
             btn.textContent = 'Submitting...';
 
             /**
-             * IMPORTANT: These keys now match your screenshot exactly:
-             * Company, Employee, Status, Timestamp, Location
+             * PAYLOAD - These keys match your screenshot exactly:
+             * Company, Employee, Timestamp, Status, Location
              */
             const payload = {
                 Company: companyVal,
                 Employee: employeeVal,
-                Status: statusVal,
                 Timestamp: timestampVal,
+                Status: statusVal,
                 Location: locationName
             };
 
             try {
-                const url = getSupabaseUrl(ATTENDANCE_TABLE);
+                const url = `${SUPABASE_BASE_URL}/rest/v1/${ATTENDANCE_TABLE}`;
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
@@ -233,7 +247,7 @@
                 });
 
                 if (response.ok) {
-                    showMessage('✓ Success!', 'success');
+                    showMessage('✓ Attendance submitted successfully!', 'success');
                     setTimeout(() => {
                         document.getElementById('employee').value = '';
                         document.querySelector('input[name="status"][value="In"]').checked = true;
@@ -242,32 +256,21 @@
                         hideMessage();
                     }, 2000);
                 } else {
-                    const err = await response.json();
-                    throw new Error(err.message || 'Submission failed');
+                    const errData = await response.json();
+                    throw new Error(errData.message || 'Submission failed');
                 }
             } catch (error) {
-                console.error('Submit Error:', error);
+                console.error('Submit error:', error);
                 showMessage('Error: ' + error.message, 'error');
                 btn.disabled = false;
                 btn.textContent = 'Submit Attendance';
             }
         }
 
-        // Utilities
-        function updateTimestamp() {
-            const n = new Date();
-            return `${String(n.getDate()).padStart(2,'0')}-${String(n.getMonth()+1).padStart(2,'0')}-${n.getFullYear()} ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
-        }
-
-        function checkFormReady() {
-            const company = document.getElementById('company').value;
-            const employee = document.getElementById('employee').value;
-            document.getElementById('submitBtn').disabled = !(company && employee && locationReady);
-        }
-
-        function showMessage(t, type) {
+        // UI Helpers
+        function showMessage(text, type) {
             const m = document.getElementById('message');
-            m.textContent = t; m.className = `message ${type}`; m.style.display = 'block';
+            m.textContent = text; m.className = `message ${type}`; m.style.display = 'block';
         }
 
         function hideMessage() { document.getElementById('message').style.display = 'none'; }
@@ -284,7 +287,7 @@
 
         document.getElementById('employee').addEventListener('change', checkFormReady);
 
-        window.onload = () => { getLocation(); updateTimestamp(); };
+        window.onload = () => { getLocation(); };
     </script>
 </body>
 </html>
