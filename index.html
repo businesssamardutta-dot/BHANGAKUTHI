@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance Management System</title>
     <style>
-        /* CSS remains exactly as before */
+        /* All your original professional CSS remains exactly the same */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
         .container { background: #ffffff; border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); width: 100%; max-width: 500px; overflow: hidden; }
@@ -80,6 +80,7 @@
                     </div>
                 </div>
 
+                <!-- Hidden Fields -->
                 <input type="hidden" id="timestamp" name="timestamp">
                 <input type="hidden" id="location" name="location">
 
@@ -191,10 +192,32 @@
             }, { enableHighAccuracy: true });
         }
 
-        function updateTimestamp() {
-            const n = new Date();
-            // Format: YYYY-MM-DD HH:mm:ss (Database standard)
-            return n.toISOString().replace('T', ' ').substring(0, 19);
+        /**
+         * 🕒 FIXED: Get timestamp in India Local Time (UTC +5:30)
+         * This ensures the database shows your local time.
+         */
+        function getIndiaTimestamp() {
+            const now = new Date();
+            
+            // Create a formatter for India Time
+            const options = {
+                timeZone: 'Asia/Kolkata',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            };
+            
+            const formatter = new Intl.DateTimeFormat('en-CA', options); // en-CA gives YYYY-MM-DD format
+            const parts = formatter.formatToParts(now);
+            const p = {};
+            parts.forEach(part => p[part.type] = part.value);
+
+            // Construct: YYYY-MM-DD HH:mm:ss+05:30
+            return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}+05:30`;
         }
 
         function checkFormReady() {
@@ -203,18 +226,18 @@
             document.getElementById('submitBtn').disabled = !(company && employee && locationReady);
         }
 
-        // 3. SUBMIT ATTENDANCE (FIXED: Using lowercase keys to match new SQL)
+        // 3. Submit Attendance
         async function submitAttendance() {
             const btn = document.getElementById('submitBtn');
             const companyVal = document.getElementById('company').value;
             const employeeVal = document.getElementById('employee').value;
             const statusVal = document.querySelector('input[name="status"]:checked').value;
-            const timestampVal = updateTimestamp();
+            const timestampVal = getIndiaTimestamp();
 
             btn.disabled = true;
             btn.textContent = 'Submitting...';
 
-            // Payload keys MUST be lowercase to match the new SQL
+            // PAYLOAD: Using lowercase keys to match your new SQL schema
             const payload = {
                 company: companyVal,
                 employee: employeeVal,
