@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance Management System</title>
     <style>
-        /* All your original CSS remains untouched */
+        /* Your existing CSS */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
         .container { background: #ffffff; border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); width: 100%; max-width: 500px; overflow: hidden; }
@@ -94,12 +94,11 @@
 
     <script>
         /** 
-         * CONFIGURATION
-         * IMPORTANT: We use the ANON PUBLIC key for the website. 
-         * NEVER put the SERVICE_ROLE key in this file.
+         * CONFIGURATION 
+         * PASTE YOUR FRESH COPIED VALUES HERE 
          */
-        const SUPABASE_BASE_URL = 'https://zakajrrmzzybyptypjdt.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpha2FqcnJmenp5YnlwdHlwamR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyODk4NzMsImV4cCI6MjA5NTg2NTg3M30.IrWQsa1s6kzgNzhoa-NXOtz9OUeKZcY2MF6e8Zp4LXU';
+        const SUPABASE_BASE_URL = 'https://zakajrrmzzybyptypjdt.supabase.co/rest/v1/'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpha2FqcnJtenp5YnlwdHlwamR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyODk4NzMsImV4cCI6MjA5NTg2NTg3M30.IrWQsa1s6kzgNzhoa-NXOtz9OUeKZcY2MF6e8Zp4LXU';
         
         const ATTENDANCE_TABLE = 'BHANGAKUTHI';
         const EMPLOYEE_TABLE = 'employee_master';
@@ -108,7 +107,7 @@
         let locationName = 'Unknown';
         let locationReady = false;
 
-        // 1. Load Employees from employee_master
+        // 1. Load Employees
         async function loadEmployees(company) {
             const employeeSelect = document.getElementById('employee');
             const loading = document.getElementById('employeeLoading');
@@ -118,27 +117,26 @@
             loading.classList.add('active');
 
             try {
-                // API Endpoint for GET
+                // Use .trim() to clean up any accidental spaces from the key
+                const cleanKey = SUPABASE_ANON_KEY.trim();
                 const url = `${SUPABASE_BASE_URL}/rest/v1/${EMPLOYEE_TABLE}?select=*`;
                 
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        'apikey': cleanKey,
+                        'Authorization': `Bearer ${cleanKey}`
                     }
                 });
 
                 if (!response.ok) {
-                    const errorBody = await response.text();
-                    throw new Error(`Server Error ${response.status}: ${errorBody}`);
+                    const errorText = await response.text();
+                    throw new Error(`Status ${response.status}: ${errorText}`);
                 }
                 
                 const data = await response.json();
-                console.log("Data received:", data);
-
-                // Filtering based on the exact column names from your screenshot:
-                // company_name and employee_name
+                
+                // Match based on screenshot: company_name and employee_name
                 const filtered = data
                     .filter(row => row.company_name === company)
                     .map(row => row.employee_name);
@@ -160,14 +158,14 @@
                 console.error('Load Error:', error);
                 employeeSelect.innerHTML = '<option value="">Failed to load</option>';
                 employeeSelect.disabled = true;
-                showMessage(`Error: ${error.message}`, 'error');
+                showMessage(`Connection Error: ${error.message}`, 'error');
             } finally {
                 loading.classList.remove('active');
                 checkFormReady();
             }
         }
 
-        // 2. Location Logic (OpenStreetMap)
+        // 2. Location Logic
         async function getLocationName(lat, lon) {
             try {
                 const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18`;
@@ -206,7 +204,7 @@
             }, { enableHighAccuracy: true });
         }
 
-        // 3. Submit Attendance to BHANGAKUTHI
+        // 3. Submit Attendance
         async function submitAttendance() {
             const btn = document.getElementById('submitBtn');
             const company = document.getElementById('company').value;
@@ -217,7 +215,6 @@
             btn.disabled = true;
             btn.textContent = 'Submitting...';
 
-            // Important: The keys in this object must match the columns in your BHANGAKUTHI table
             const payload = {
                 company: company,
                 employee: employee,
@@ -227,12 +224,13 @@
             };
 
             try {
+                const cleanKey = SUPABASE_ANON_KEY.trim();
                 const url = `${SUPABASE_BASE_URL}/rest/v1/${ATTENDANCE_TABLE}`;
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'apikey': cleanKey,
+                        'Authorization': `Bearer ${cleanKey}`,
                         'Content-Type': 'application/json',
                         'Prefer': 'return=minimal'
                     },
@@ -260,7 +258,7 @@
             }
         }
 
-        // Helper Utilities
+        // Utilities
         function updateTimestamp() {
             const n = new Date();
             return `${String(n.getDate()).padStart(2,'0')}-${String(n.getMonth()+1).padStart(2,'0')}-${n.getFullYear()} ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
