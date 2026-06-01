@@ -291,7 +291,7 @@
             loading.classList.add('active');
 
             try {
-                // Fetching all employees from the master table
+                // Fetching data from employee_master table
                 const response = await fetch(`${SUPABASE_URL}/${EMPLOYEE_TABLE}?select=*`, {
                     headers: {
                         'apikey': SUPABASE_KEY,
@@ -299,15 +299,14 @@
                     }
                 });
 
-                if (!response.ok) throw new Error('Failed to fetch employees');
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 
                 const employeesData = await response.json();
                 
-                // Filter employees where company matches (assumes column name is 'company')
-                // and name matches (assumes column name is 'name')
+                // UPDATED: Using 'company_name' and 'employee_name' from your screenshot
                 const filteredEmployees = employeesData
-                    .filter(emp => emp.company === company)
-                    .map(emp => emp.name); // Change 'name' to your column name if different
+                    .filter(emp => emp.company_name === company)
+                    .map(emp => emp.employee_name);
 
                 if (filteredEmployees.length > 0) {
                     employeeSelect.innerHTML = '<option value="">Select Employee</option>';
@@ -326,7 +325,7 @@
                 console.error('Error loading employees:', error);
                 employeeSelect.innerHTML = '<option value="">Failed to load employees</option>';
                 employeeSelect.disabled = true;
-                showMessage('Failed to load employees. Please check your connection.', 'error');
+                showMessage('Failed to load employees. Please check RLS policies in Supabase.', 'error');
             } finally {
                 loading.classList.remove('active');
             }
@@ -420,8 +419,7 @@
             submitBtn.disabled = true;
             submitBtn.textContent = 'Submitting...';
 
-            // Prepare data for Supabase
-            // NOTE: Ensure these keys (company, employee, status, etc.) match your Supabase column names exactly!
+            // ⚠️ IMPORTANT: Ensure these keys match your "BHANGAKUTHI" table column names!
             const payload = {
                 company: company,
                 employee: employee,
@@ -472,7 +470,8 @@
         }
 
         function hideMessage() {
-            document.getElementById('message').style.display = 'none';
+            const message = document.getElementById('message');
+            message.style.display = 'none';
         }
 
         document.getElementById('company').addEventListener('change', function() {
