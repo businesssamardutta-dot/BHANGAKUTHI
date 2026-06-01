@@ -270,6 +270,7 @@
 
     <script>
         // SUPABASE CREDENTIALS
+        // REMOVED trailing slash from URL to prevent double-slash errors
         const SUPABASE_URL = 'https://zakajrrmzzybyptypjdt.supabase.co/rest/v1';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpha2FqcnJmenp5YnlwdHlwamR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyODk4NzMsImV4cCI6MjA5NTg2NTg3M30.IrWQsa1s6kzgNzhoa-NXOtz9OUeKZcY2MF6e8Zp4LXU';
         
@@ -291,7 +292,8 @@
             loading.classList.add('active');
 
             try {
-                // Fetching data from employee_master table
+                // Fetching data from employee_master
+                // Using correct column names from your screenshot: company_name and employee_name
                 const response = await fetch(`${SUPABASE_URL}/${EMPLOYEE_TABLE}?select=*`, {
                     headers: {
                         'apikey': SUPABASE_KEY,
@@ -299,11 +301,15 @@
                     }
                 });
 
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`Server Error: ${response.status} - ${errText}`);
+                }
                 
                 const employeesData = await response.json();
+                console.log("Fetched data:", employeesData);
                 
-                // UPDATED: Using 'company_name' and 'employee_name' from your screenshot
+                // Filtering based on your screenshot column names
                 const filteredEmployees = employeesData
                     .filter(emp => emp.company_name === company)
                     .map(emp => emp.employee_name);
@@ -319,13 +325,13 @@
                     employeeSelect.disabled = false;
                 } else {
                     employeeSelect.innerHTML = '<option value="">No employees found</option>';
-                    showMessage(`No employees found for company "${company}"`, 'error');
+                    showMessage(`No employees found for "${company}"`, 'error');
                 }
             } catch (error) {
                 console.error('Error loading employees:', error);
-                employeeSelect.innerHTML = '<option value="">Failed to load employees</option>';
+                employeeSelect.innerHTML = '<option value="">Failed to load</option>';
                 employeeSelect.disabled = true;
-                showMessage('Failed to load employees. Please check RLS policies in Supabase.', 'error');
+                showMessage(`Error: ${error.message}`, 'error');
             } finally {
                 loading.classList.remove('active');
             }
@@ -346,6 +352,7 @@
                     if (addr.road) parts.push(addr.road);
                     if (addr.suburb || addr.neighbourhood) parts.push(addr.suburb || addr.neighbourhood);
                     if (addr.city || addr.town || addr.village) parts.push(addr.city || addr.town || addr.village);
+                    
                     if (parts.length > 0) return parts.slice(0, 3).join(', ');
                     return data.display_name.split(',').slice(0, 3).join(',');
                 }
@@ -359,7 +366,7 @@
         function getLocation() {
             const locationDisplay = document.getElementById('locationDisplay');
             if (!navigator.geolocation) {
-                locationDisplay.value = 'Location not supported';
+                locationDisplay.value = 'Not supported';
                 locationReady = false;
                 return;
             }
@@ -379,7 +386,7 @@
                     checkFormReady();
                 },
                 function(error) {
-                    locationDisplay.value = 'Location access denied';
+                    locationDisplay.value = 'Access denied';
                     locationReady = false;
                     showMessage('Please enable location services.', 'error');
                     checkFormReady();
@@ -402,7 +409,7 @@
             submitBtn.disabled = !(company && employee && locationReady);
         }
 
-        // Submit attendance to Supabase
+        // Submit attendance
         async function submitAttendance() {
             const submitBtn = document.getElementById('submitBtn');
             const company = document.getElementById('company').value;
@@ -419,7 +426,7 @@
             submitBtn.disabled = true;
             submitBtn.textContent = 'Submitting...';
 
-            // ⚠️ IMPORTANT: Ensure these keys match your "BHANGAKUTHI" table column names!
+            // Ensure these column names match your BHANGAKUTHI table!
             const payload = {
                 company: company,
                 employee: employee,
@@ -451,12 +458,11 @@
                     }, 2000);
                 } else {
                     const errorData = await response.json();
-                    console.error('Supabase Error:', errorData);
                     throw new Error(errorData.message || 'Submission failed');
                 }
             } catch (error) {
                 console.error('Submit error:', error);
-                showMessage('Failed to submit. ' + error.message, 'error');
+                showMessage('Failed to submit: ' + error.message, 'error');
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Submit Attendance';
             }
