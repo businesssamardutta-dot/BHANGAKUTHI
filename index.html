@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance Management System</title>
     <style>
-        /* All original CSS remains untouched */
+        /* Your original CSS */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
         .container { background: #ffffff; border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); width: 100%; max-width: 500px; overflow: hidden; }
@@ -95,26 +95,16 @@
     <script>
         /** 
          * 🛠️ CONFIGURATION 
-         * IMPORTANT: Paste your freshly copied "anon public" key below.
-         * DO NOT use quotes around the key.
          */
         const SUPABASE_BASE_URL = 'https://zakajrrmzzybyptypjdt.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpha2FqcnJtenp5YnlwdHlwamR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyODk4NzMsImV4cCI6MjA5NTg2NTg3M30.IrWQsa1s6kzgNzhoa-NXOtz9OUeKZcY2MF6e8Zp4LXU'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpha2FqcnJmenp5YnlwdHlwamR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyODk4NzMsImV4cCI6MjA5NTg2NTg3M30.IrWQsa1s6kzgNzhoa-NXOtz9OUeKZcY2MF6e8Zp4LXU';
         
         const ATTENDANCE_TABLE = 'BHANGAKUTHI';
-        const EMPLOYEE_TABLE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpha2FqcnJtenp5YnlwdHlwamR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyODk4NzMsImV4cCI6MjA5NTg2NTg3M30.IrWQsa1s6kzgNzhoa-NXOtz9OUeKZcY2MF6e8Zp4LXU';
+        const EMPLOYEE_TABLE = 'employee_master';
         
         let locationCoords = null;
         let locationName = 'Unknown';
         let locationReady = false;
-
-        /**
-         * URL BUILDER (Slash-Proof)
-         */
-        function getSupabaseUrl(tableName, query = '') {
-            const cleanBase = SUPABASE_BASE_URL.replace(/\/+$/, "");
-            return `${cleanBase}/rest/v1/${tableName}${query ? '?' + query : ''}`;
-        }
 
         // 1. Load Employees
         async function loadEmployees(company) {
@@ -126,20 +116,21 @@
             loading.classList.add('active');
 
             try {
-                const url = getSupabaseUrl(EMPLOYEE_TABLE, 'select=*');
-                const cleanKey = SUPABASE_KEY.trim(); // Removes accidental spaces
+                // Direct URL construction to avoid variable mixups
+                const url = `${SUPABASE_BASE_URL}/rest/v1/${EMPLOYEE_TABLE}?select=*`;
+                console.log("Fetching URL:", url);
                 
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: {
-                        'apikey': cleanKey,
-                        'Authorization': `Bearer ${cleanKey}`
+                        'apikey': SUPABASE_KEY.trim(),
+                        'Authorization': `Bearer ${SUPABASE_KEY.trim()}`
                     }
                 });
 
                 if (!response.ok) {
                     const errText = await response.text();
-                    throw new Error(`Server error ${response.status}: ${errText}`);
+                    throw new Error(`Server Error ${response.status}: ${errText}`);
                 }
                 
                 const data = await response.json();
@@ -166,14 +157,14 @@
                 console.error('Load Error:', error);
                 employeeSelect.innerHTML = '<option value="">Error loading</option>';
                 employeeSelect.disabled = true;
-                showMessage(`Connection Error: ${error.message}`, 'error');
+                showMessage(`Error: ${error.message}`, 'error');
             } finally {
                 loading.classList.remove('active');
                 checkFormReady();
             }
         }
 
-        // 2. Location Logic
+        // 2. Location logic
         async function getLocationName(lat, lon) {
             try {
                 const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18`;
@@ -232,13 +223,13 @@
             };
 
             try {
-                const url = getSupabaseUrl(ATTENDANCE_TABLE);
-                const cleanKey = SUPABASE_KEY.trim();
+                // Direct URL construction
+                const url = `${SUPABASE_BASE_URL}/rest/v1/${ATTENDANCE_TABLE}`;
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
-                        'apikey': cleanKey,
-                        'Authorization': `Bearer ${cleanKey}`,
+                        'apikey': SUPABASE_KEY.trim(),
+                        'Authorization': `Bearer ${SUPABASE_KEY.trim()}`,
                         'Content-Type': 'application/json',
                         'Prefer': 'return=minimal'
                     },
@@ -266,7 +257,7 @@
             }
         }
 
-        // Utilities
+        // Helpers
         function updateTimestamp() {
             const n = new Date();
             return `${String(n.getDate()).padStart(2,'0')}-${String(n.getMonth()+1).padStart(2,'0')}-${n.getFullYear()} ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
