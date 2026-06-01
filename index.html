@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance Management System</title>
     <style>
-        /* All your professional CSS remains exactly as it was */
+        /* CSS remains exactly as before */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
         .container { background: #ffffff; border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); width: 100%; max-width: 500px; overflow: hidden; }
@@ -80,7 +80,6 @@
                     </div>
                 </div>
 
-                <!-- Hidden Fields -->
                 <input type="hidden" id="timestamp" name="timestamp">
                 <input type="hidden" id="location" name="location">
 
@@ -107,7 +106,7 @@
         let locationName = 'Unknown';
         let locationReady = false;
 
-        // 1. LOAD EMPLOYEES (Using master table columns: company_name, employee_name)
+        // 1. Load Employees
         async function loadEmployees(company) {
             const employeeSelect = document.getElementById('employee');
             const loading = document.getElementById('employeeLoading');
@@ -147,7 +146,7 @@
                 }
             } catch (error) {
                 console.error('Load Error:', error);
-                employeeSelect.innerHTML = '<option value="">Failed to load</option>';
+                employeeSelect.innerHTML = '<option value="">Error loading</option>';
                 employeeSelect.disabled = true;
                 showMessage(`Failed to load employees.`, 'error');
             } finally {
@@ -156,7 +155,7 @@
             }
         }
 
-        // 2. LOCATION LOGIC
+        // 2. Location Logic
         async function getLocationName(lat, lon) {
             try {
                 const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18`;
@@ -192,16 +191,10 @@
             }, { enableHighAccuracy: true });
         }
 
-        // 3. FORMAT TIMESTAMP (Using YYYY-MM-DD format for database compatibility)
-        function getFormattedTimestamp() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        function updateTimestamp() {
+            const n = new Date();
+            // Format: YYYY-MM-DD HH:mm:ss (Database standard)
+            return n.toISOString().replace('T', ' ').substring(0, 19);
         }
 
         function checkFormReady() {
@@ -210,27 +203,24 @@
             document.getElementById('submitBtn').disabled = !(company && employee && locationReady);
         }
 
-        // 4. SUBMIT ATTENDANCE (Using EXACT Capitalized Column Names from your screenshot)
+        // 3. SUBMIT ATTENDANCE (FIXED: Using lowercase keys to match new SQL)
         async function submitAttendance() {
             const btn = document.getElementById('submitBtn');
             const companyVal = document.getElementById('company').value;
             const employeeVal = document.getElementById('employee').value;
             const statusVal = document.querySelector('input[name="status"]:checked').value;
-            const timestampVal = getFormattedTimestamp();
+            const timestampVal = updateTimestamp();
 
             btn.disabled = true;
             btn.textContent = 'Submitting...';
 
-            /**
-             * PAYLOAD - These keys match your screenshot exactly:
-             * Company, Employee, Timestamp, Status, Location
-             */
+            // Payload keys MUST be lowercase to match the new SQL
             const payload = {
-                Company: companyVal,
-                Employee: employeeVal,
-                Timestamp: timestampVal,
-                Status: statusVal,
-                Location: locationName
+                company: companyVal,
+                employee: employeeVal,
+                status: statusVal,
+                timestamp: timestampVal,
+                location: locationName
             };
 
             try {
@@ -247,7 +237,7 @@
                 });
 
                 if (response.ok) {
-                    showMessage('✓ Attendance submitted successfully!', 'success');
+                    showMessage('✓ Success!', 'success');
                     setTimeout(() => {
                         document.getElementById('employee').value = '';
                         document.querySelector('input[name="status"][value="In"]').checked = true;
@@ -256,8 +246,8 @@
                         hideMessage();
                     }, 2000);
                 } else {
-                    const errData = await response.json();
-                    throw new Error(errData.message || 'Submission failed');
+                    const err = await response.json();
+                    throw new Error(err.message || 'Submission failed');
                 }
             } catch (error) {
                 console.error('Submit error:', error);
@@ -267,10 +257,9 @@
             }
         }
 
-        // UI Helpers
-        function showMessage(text, type) {
+        function showMessage(t, type) {
             const m = document.getElementById('message');
-            m.textContent = text; m.className = `message ${type}`; m.style.display = 'block';
+            m.textContent = t; m.className = `message ${type}`; m.style.display = 'block';
         }
 
         function hideMessage() { document.getElementById('message').style.display = 'none'; }
