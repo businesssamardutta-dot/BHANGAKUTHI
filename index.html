@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance Management System</title>
     <style>
-        /* CSS remains untouched */
+        /* All original CSS remains untouched */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
         .container { background: #ffffff; border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); width: 100%; max-width: 500px; overflow: hidden; }
@@ -93,44 +93,45 @@
     </div>
 
     <script>
-        // 🛠️ CONFIGURATION
-        const BASE_URL = 'https://zakajrrmzzybyptypjdt.supabase.co';
-        const API_KEY = 'sb_publishable_gyCv95K2Grwv6zJglCrUVQ_q2SxXtfT';
+        /** 
+         * 🛠️ CONFIGURATION 
+         */
+        const SUPABASE_BASE_URL = 'https://zakajrrmzzybyptypjdt.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_gyCv95K2Grwv6zJglCrUVQ_q2SxXtfT';
+        
+        const ATTENDANCE_TABLE = 'BHANGAKUTHI';
+        const EMPLOYEE_TABLE = 'employee_master';
         
         let locationCoords = null;
         let locationName = 'Unknown';
         let locationReady = false;
 
-        // 1. LOAD EMPLOYEES (HARDCODED TABLE NAME TO PREVENT ERRORS)
+        function getSupabaseUrl(tableName, query = '') {
+            const cleanBase = SUPABASE_BASE_URL.replace(/\/+$/, "");
+            return `${cleanBase}/rest/v1/${tableName}${query ? '?' + query : ''}`;
+        }
+
+        // 1. Load Employees (Uses employee_master column names: company_name and employee_name)
         async function loadEmployees(company) {
             const employeeSelect = document.getElementById('employee');
             const loading = document.getElementById('employeeLoading');
-            
             employeeSelect.innerHTML = '<option value="">Loading employees...</option>';
             employeeSelect.disabled = true;
             loading.classList.add('active');
 
             try {
-                // HARDCODED URL: No variables used in the path construction to avoid mixing up keys and names
-                const url = 'https://zakajrrmzzybyptypjdt.supabase.co/rest/v1/employee_master?select=*';
-                console.log("Fetching URL:", url);
-                
+                const url = getSupabaseUrl(EMPLOYEE_TABLE, 'select=*');
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: {
-                        'apikey': API_KEY.trim(),
-                        'Authorization': `Bearer ${API_KEY.trim()}`
+                        'apikey': SUPABASE_KEY.trim(),
+                        'Authorization': `Bearer ${SUPABASE_KEY.trim()}`
                     }
                 });
 
-                if (!response.ok) {
-                    const errText = await response.text();
-                    throw new Error(`Server error ${response.status}: ${errText}`);
-                }
+                if (!response.ok) throw new Error(`Error ${response.status}`);
                 
                 const data = await response.json();
-                
-                // Filter based on your exact screenshot column names
                 const filtered = data
                     .filter(row => row.company_name === company)
                     .map(row => row.employee_name);
@@ -159,7 +160,7 @@
             }
         }
 
-        // 2. LOCATION LOGIC
+        // 2. Location Logic
         async function getLocationName(lat, lon) {
             try {
                 const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18`;
@@ -179,10 +180,7 @@
 
         function getLocation() {
             const display = document.getElementById('locationDisplay');
-            if (!navigator.geolocation) {
-                display.value = 'Not supported';
-                return;
-            }
+            if (!navigator.geolocation) { display.value = 'Not supported'; return; }
             navigator.geolocation.getCurrentPosition(async (pos) => {
                 locationCoords = `${pos.coords.latitude}, ${pos.coords.longitude}`;
                 document.getElementById('location').value = locationCoords;
@@ -198,33 +196,36 @@
             }, { enableHighAccuracy: true });
         }
 
-        // 3. SUBMIT ATTENDANCE (HARDCODED TABLE NAME)
+        // 3. SUBMIT ATTENDANCE (FIXED: Using Capitalized column names from your screenshot)
         async function submitAttendance() {
             const btn = document.getElementById('submitBtn');
-            const company = document.getElementById('company').value;
-            const employee = document.getElementById('employee').value;
-            const status = document.querySelector('input[name="status"]:checked').value;
-            const timestamp = updateTimestamp();
+            const companyVal = document.getElementById('company').value;
+            const employeeVal = document.getElementById('employee').value;
+            const statusVal = document.querySelector('input[name="status"]:checked').value;
+            const timestampVal = updateTimestamp();
 
             btn.disabled = true;
             btn.textContent = 'Submitting...';
 
+            /**
+             * IMPORTANT: These keys now match your screenshot exactly:
+             * Company, Employee, Status, Timestamp, Location
+             */
             const payload = {
-                company: company,
-                employee: employee,
-                status: status,
-                timestamp: timestamp,
-                location: locationName
+                Company: companyVal,
+                Employee: employeeVal,
+                Status: statusVal,
+                Timestamp: timestampVal,
+                Location: locationName
             };
 
             try {
-                // HARDCODED URL: No variables used in the path construction
-                const url = 'https://zakajrrmzzybyptypjdt.supabase.co/rest/v1/BHANGAKUTHI';
+                const url = getSupabaseUrl(ATTENDANCE_TABLE);
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
-                        'apikey': API_KEY.trim(),
-                        'Authorization': `Bearer ${API_KEY.trim()}`,
+                        'apikey': SUPABASE_KEY.trim(),
+                        'Authorization': `Bearer ${SUPABASE_KEY.trim()}`,
                         'Content-Type': 'application/json',
                         'Prefer': 'return=minimal'
                     },
@@ -252,7 +253,7 @@
             }
         }
 
-        // UTILITIES
+        // Utilities
         function updateTimestamp() {
             const n = new Date();
             return `${String(n.getDate()).padStart(2,'0')}-${String(n.getMonth()+1).padStart(2,'0')}-${n.getFullYear()} ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
