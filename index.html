@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance Management System</title>
     <style>
-        /* All your original professional CSS remains exactly the same */
+        /* All your original professional CSS remains untouched */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
         .container { background: #ffffff; border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); width: 100%; max-width: 500px; overflow: hidden; }
@@ -80,7 +80,6 @@
                     </div>
                 </div>
 
-                <!-- Hidden Fields -->
                 <input type="hidden" id="timestamp" name="timestamp">
                 <input type="hidden" id="location" name="location">
 
@@ -107,7 +106,7 @@
         let locationName = 'Unknown';
         let locationReady = false;
 
-        // 1. Load Employees
+        // 1. Load Employees (Using lowercase column names from your new SQL)
         async function loadEmployees(company) {
             const employeeSelect = document.getElementById('employee');
             const loading = document.getElementById('employeeLoading');
@@ -128,6 +127,8 @@
                 if (!response.ok) throw new Error(`Error ${response.status}`);
                 
                 const data = await response.json();
+                
+                // Filter matching company_name and map to employee_name (lowercase)
                 const filtered = data
                     .filter(row => row.company_name === company)
                     .map(row => row.employee_name);
@@ -193,30 +194,21 @@
         }
 
         /**
-         * 🕒 FIXED: Get timestamp in India Local Time (UTC +5:30)
-         * This ensures the database shows your local time.
+         * 🕒 FIXED: India Local Time (UTC +5:30)
+         * This produces: 2026-06-01 15:30:00+05:30
          */
         function getIndiaTimestamp() {
             const now = new Date();
-            
-            // Create a formatter for India Time
             const options = {
                 timeZone: 'Asia/Kolkata',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
                 hour12: false
             };
-            
-            const formatter = new Intl.DateTimeFormat('en-CA', options); // en-CA gives YYYY-MM-DD format
+            const formatter = new Intl.DateTimeFormat('en-CA', options);
             const parts = formatter.formatToParts(now);
             const p = {};
             parts.forEach(part => p[part.type] = part.value);
-
-            // Construct: YYYY-MM-DD HH:mm:ss+05:30
             return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}+05:30`;
         }
 
@@ -226,7 +218,7 @@
             document.getElementById('submitBtn').disabled = !(company && employee && locationReady);
         }
 
-        // 3. Submit Attendance
+        // 3. Submit Attendance (Uses lowercase keys to match your new SQL)
         async function submitAttendance() {
             const btn = document.getElementById('submitBtn');
             const companyVal = document.getElementById('company').value;
@@ -237,7 +229,7 @@
             btn.disabled = true;
             btn.textContent = 'Submitting...';
 
-            // PAYLOAD: Using lowercase keys to match your new SQL schema
+            // Payload using EXACT lowercase column names from your new SQL
             const payload = {
                 company: companyVal,
                 employee: employeeVal,
